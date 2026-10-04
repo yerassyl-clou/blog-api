@@ -1,14 +1,13 @@
-from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
-from django.core.exceptions import ValidationError
-
-from django.db.models import (
-    BooleanField,
-    CharField,
-    EmailField
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
 )
+from django.core.exceptions import ValidationError
+from django.db.models import BooleanField, CharField, EmailField
 
-class CustomUserManager(BaseUserManager):
+
+class UserManager(BaseUserManager):
     
     def create_user(
         self, 
@@ -27,7 +26,7 @@ class CustomUserManager(BaseUserManager):
         if not last_name:
             raise ValidationError(("last name is required"), code="empty last name field")
         
-        user: "User" = self.model( 
+        user: User = self.model( 
             email = self.normalize_email(email), 
             first_name=first_name, 
             last_name=last_name
@@ -35,7 +34,7 @@ class CustomUserManager(BaseUserManager):
         )
             
         user.set_password(password)
-        user.save
+        user.save(using=self._db)
         return user
 
     def create_superuser(
@@ -53,8 +52,8 @@ class CustomUserManager(BaseUserManager):
             raise ValidationError(("first_name is required"), code="empty first name field")
         if not last_name:
             raise ValidationError(("last name is required"), code="empty last name field")
-        
-        user: "User" = self.model( 
+
+        user: User = self.model( 
             email = self.normalize_email(email), 
             first_name=first_name, 
             last_name=last_name,
@@ -65,7 +64,7 @@ class CustomUserManager(BaseUserManager):
             
 
         user.set_password(password)
-        user.save
+        user.save(using=self._db)
         return user
     
 
@@ -78,23 +77,23 @@ class User(AbstractBaseUser, PermissionsMixin):
     FIRST_NAME_MAX_LENGTH = 50
     LAST_NAME_MAX_LENGTH = 50 
 
-    email = models.EmailField(
+    email = EmailField(
         unique=True
     )
-    first_name = models.CharField(
+    first_name = CharField(
         max_length=FIRST_NAME_MAX_LENGTH
     )
-    last_name = models.CharField(
+    last_name = CharField(
         max_length=LAST_NAME_MAX_LENGTH
-    )
-    is_active = models.BooleanField(
+    ) 
+    is_active = BooleanField(
         default=True
     )
-    is_staff = models.BooleanField(
+    is_staff = BooleanField(
         default=False
     )
     
+    REQUIRED_FIELDS = ("first_name", "last_name")
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name, last_name"]
 
-    objects = CustomUserManager
+    objects = UserManager()

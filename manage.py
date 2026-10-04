@@ -5,6 +5,7 @@ import sys
 
 from settings.conf import ENV_ID
 
+
 def main():
     """Run administrative tasks."""
 

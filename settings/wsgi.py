@@ -1,5 +1,3 @@
-from settings.conf import BLOG_ENV_ID
-
 """
 WSGI config for settings project.
 
@@ -14,7 +12,6 @@ import os
 from django.core.wsgi import get_wsgi_application
 
 from settings.conf import ENV_ID
-
 
 assert ENV_ID, "Enviroment variable is not set"
 

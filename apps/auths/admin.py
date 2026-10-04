@@ -1,3 +1,12 @@
 from django.contrib import admin
 
-# Register your models here.
+from apps.auths.models import User
+
+
+@admin.register(User)
+class UserAdmin(admin.ModelAdmin):
+    """Custom user model admin configuration class."""
+    
+
+
+

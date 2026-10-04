@@ -1,17 +1,14 @@
-from django.db import models
-
 from django.db.models import (
-    BooleanField,
-    CharField,
-    EmailField,
-    SlugField,
-    ForeignKey,
-    Model,
-    TextChoices,
-    DateTimeField,
     CASCADE,
-    SET_NULL
-
+    SET_NULL,
+    CharField,
+    DateTimeField,
+    ForeignKey,
+    ManyToManyField,
+    Model,
+    SlugField,
+    TextChoices,
+    TextField,
 )
 
 from apps.auths.models import User
@@ -22,11 +19,11 @@ class Category(Model):
 
     NAME_MAX_LENGTH = 100
 
-    name = models.CharField(
+    name = CharField(
         max_length=NAME_MAX_LENGTH,
         unique=True
     )
-    slug = models.SlugField(
+    slug = SlugField(
         unique=True
     )
 
@@ -36,11 +33,11 @@ class Tag(Model):
 
     NAME_MAX_LENGTH = 50
 
-    name = models.CharField(
+    name = CharField(
         max_length=NAME_MAX_LENGTH,
         unique=True
     )
-    slug = models.SlugField(
+    slug = SlugField(
         unique=True
     )
 
@@ -50,24 +47,24 @@ class Post(Model):
 
     TITLE_MAX_LENGTH = 50
 
-    author = models.ForeignKey(
+    author = ForeignKey(
         to=User,
-        on_delete=models.CASCADE
+        on_delete=CASCADE
     )
-    title = models.CharField(
+    title = CharField(
         max_length=TITLE_MAX_LENGTH
     )
-    slug = models.SlugField(
+    slug = SlugField(
         unique=True
     )
-    body = models.TextField(
+    body = TextField(
     )
-    category = models.ForeignKey(
+    category = ForeignKey(
         to=Category,
-        on_delete=models.SET_NULL,
+        on_delete=SET_NULL,
         null=True
     )
-    tags = models.ManyToManyField(
+    tags = ManyToManyField(
         to=Tag,
         blank=True
     )
@@ -85,15 +82,15 @@ class Post(Model):
 
 class Comment(Model):
     """"Comment database table."""
-    post = models.ForeignKey(
+    post = ForeignKey(
         to=Post,
         on_delete=CASCADE
     )
-    author = models.ForeignKey(
+    author = ForeignKey(
         to=User,
-        on_delete=models.CASCADE
+        on_delete=CASCADE
     )
-    body = models.TextField(
+    body = TextField(
     )
     created_at = DateTimeField(
         auto_now_add=True
