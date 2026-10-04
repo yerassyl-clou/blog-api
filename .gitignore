@@ -1,0 +1,51 @@
+# Django #
+*.log
+*.pot
+*.pyc
+__pycache__
+db.sqlite3
+db.sqlite3-journal
+/media/
+/staticfiles/
+/static_root/
+
+# Python # 
+*.py[cod] 
+*$py.class 
+*.so
+
+#enviromental variables
+venv/
+settings/.env
+.env.*
+
+#logs
+logs/
+
+
+# Testing / linters / coverage reports 
+htmlcov/ 
+.tox/ 
+.coverage 
+.coverage.* 
+.cache 
+.pytest_cache/ 
+.mypy_cache/
+.ruff_cache/
+ruff.toml
+nosetests.xml 
+coverage.xml 
+*.cover 
+.hypothesis/ 
+
+
+
+# IDE
+.vscode/* 
+!.vscode/settings.json 
+!.vscode/tasks.json 
+!.vscode/launch.json 
+!.vscode/extensions.json 
+.history
+.idea/
+*.swp
