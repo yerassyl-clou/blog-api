@@ -27,6 +27,9 @@ class Category(Model):
         unique=True
     )
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class Tag(Model):
     """"Tag database table."""
@@ -40,6 +43,9 @@ class Tag(Model):
     slug = SlugField(
         unique=True
     )
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Post(Model):
@@ -68,16 +74,25 @@ class Post(Model):
         to=Tag,
         blank=True
     )
-    status = TextChoices(
-        "draft",
-        "published"
+
+    class StatusType(TextChoices):
+        DRAFT = "draft"
+        PUBLISHED = "published"
+
+    status = CharField(
+        choices=StatusType.choices,
+        max_length=10
     )
+
     created_at = DateTimeField(
         auto_now_add=True
     )
     updated_at = DateTimeField(
         auto_now=True
     )
+
+    def __str__(self) -> str:
+        return self.title
 
 
 class Comment(Model):
@@ -95,3 +110,6 @@ class Comment(Model):
     created_at = DateTimeField(
         auto_now_add=True
     )
+
+    def __str__(self) -> str:
+        return self.body
