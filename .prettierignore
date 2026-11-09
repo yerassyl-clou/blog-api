@@ -1,0 +1,2 @@
+# Django template tags must stay on a single line.
+templates/admin/index.html

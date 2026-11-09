@@ -1,0 +1,344 @@
+{% extends "admin/base.html" %}
+
+{% load i18n unfold %}
+
+{% block title %}
+  Dashboard | {{ site_title|default:_("Django site admin") }}
+{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .blog-dashboard {
+    display: grid;
+    gap: 1.25rem;
+    max-width: 82rem;
+    margin: 0 auto;
+    padding: 0.5rem 0 1.5rem;
+    --dashboard-tint: color-mix(
+      in oklab,
+      var(--color-primary-200) 18%,
+      transparent
+    );
+    --dashboard-accent: var(--color-primary-950);
+  }
+
+  .dark .blog-dashboard {
+    --dashboard-tint: color-mix(
+      in oklab,
+      var(--color-primary-600) 15%,
+      transparent
+    );
+    --dashboard-accent: var(--color-primary-200);
+  }
+
+  .dashboard-intro {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    min-height: 10rem;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    border: 1px solid var(--color-base-200);
+    border-radius: 1rem;
+    background: linear-gradient(105deg, var(--dashboard-tint), transparent 85%);
+  }
+
+  .dark .dashboard-intro {
+    border-color: var(--color-base-700);
+  }
+
+  .dashboard-intro-copy {
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-eyebrow {
+    color: var(--dashboard-accent);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-intro h1 {
+    margin: 0.35rem 0 0.5rem;
+    font-size: clamp(1.9rem, 4vw, 2.75rem);
+    font-weight: 650;
+    line-height: 1.1;
+    letter-spacing: -0.045em;
+  }
+
+  .dashboard-illustration {
+    position: absolute;
+    right: 1rem;
+    bottom: -1.5rem;
+    width: min(31%, 17rem);
+    color: var(--color-primary-700);
+  }
+
+  .dashboard-metrics,
+  .dashboard-panels,
+  .dashboard-sidebar {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-panels {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+
+  .dashboard-sidebar {
+    align-content: start;
+    min-width: 0;
+  }
+
+  .dashboard-metric {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+  }
+
+  .dashboard-metric-icon {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    border-radius: 0.75rem;
+    color: var(--dashboard-accent);
+    background: var(--dashboard-tint);
+    font-size: 1.25rem;
+  }
+
+  .dashboard-number {
+    font-size: 1.75rem;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -0.035em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dashboard-category-card > .grow,
+  .dashboard-chart-layout {
+    display: grid;
+  }
+
+  .dashboard-chart {
+    min-height: max(14rem, calc(var(--category-count) * 1.8rem + 2rem));
+  }
+
+  .dashboard-chart canvas {
+    position: absolute;
+    inset: 0;
+  }
+
+  .dashboard-status + .dashboard-status {
+    margin-top: 1.25rem;
+  }
+
+  .dashboard-status-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .dashboard-status-label strong {
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dashboard-status .dashboard-fill {
+    height: 0.5rem;
+    background: var(--color-primary-700);
+  }
+
+  .dashboard-status .dashboard-fill.dashboard-drafts {
+    background: var(--color-primary-100);
+  }
+
+  .blog-dashboard .dashboard-count {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @container (min-width: 58rem) {
+    .dashboard-metrics {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @container (max-width: 45rem) {
+    .dashboard-panels {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @container (max-width: 34rem) {
+    .dashboard-illustration {
+      display: none;
+    }
+
+    .dashboard-metrics {
+      gap: 0.75rem;
+    }
+
+    .dashboard-metric-card {
+      padding: 0.875rem;
+    }
+
+    .dashboard-metric {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="blog-dashboard">
+  <header class="dashboard-intro">
+    <div class="dashboard-intro-copy">
+      <p class="dashboard-eyebrow">Blog API</p>
+      <h1 class="text-important">Editorial overview</h1>
+      <p class="text-subtle">
+        Track publishing, authors, and community activity.
+      </p>
+    </div>
+    <svg
+      class="dashboard-illustration"
+      viewBox="0 0 252 160"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="133" cy="85" r="73" fill="currentColor" fill-opacity=".12" />
+      <circle
+        cx="133"
+        cy="85"
+        r="56"
+        stroke="currentColor"
+        stroke-opacity=".35"
+      />
+      <g transform="rotate(12 148 83)">
+        <rect
+          x="101"
+          y="42"
+          width="97"
+          height="85"
+          rx="14"
+          fill="currentColor"
+          fill-opacity=".18"
+          stroke="currentColor"
+          stroke-opacity=".6"
+        />
+      </g>
+      <g transform="rotate(-9 115 83)">
+        <rect
+          x="65"
+          y="37"
+          width="103"
+          height="88"
+          rx="14"
+          fill="var(--color-primary-50)"
+          stroke="currentColor"
+        />
+        <rect
+          x="79"
+          y="51"
+          width="30"
+          height="25"
+          rx="6"
+          fill="var(--color-primary-600)"
+        />
+        <path
+          d="M85 69l6-7 5 4 6-8M120 55h30m-30 10h23M80 88h70M80 99h62m-62 10h42"
+          stroke="var(--color-primary-950)"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        />
+      </g>
+      <path
+        d="M44 60v12m-6-6h12m163 15v12m-6-6h12M194 27v10m-5-5h10"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    </svg>
+  </header>
+
+  <section class="dashboard-metrics" aria-label="Blog totals">
+    {% for card in cards %}
+      {% component "unfold/components/card.html" with class="dashboard-metric-card" %}
+        <div class="dashboard-metric">
+          <span class="material-symbols-outlined dashboard-metric-icon" aria-hidden="true">{{ card.icon }}</span>
+          <div>
+            <p class="text-subtle">{{ card.title }}</p>
+            <p class="dashboard-number text-important">{{ card.value }}</p>
+          </div>
+        </div>
+      {% endcomponent %}
+    {% endfor %}
+  </section>
+
+  <div class="dashboard-panels">
+    {% component "unfold/components/card.html" with title="Posts by category" description="Published posts and drafts in each category" class="dashboard-category-card" %}
+      {% if category_counts %}
+        <div class="dashboard-chart-layout" style="--category-count: {{ category_counts|length }}" aria-hidden="true">
+          {% component "unfold/components/chart/bar.html" with data=posts_per_category_chart options=category_chart_options class="dashboard-chart" %}
+          {% endcomponent %}
+        </div>
+        <ul class="sr-only" aria-label="Post counts by category">
+          {% for name, count in category_counts %}
+            <li>{{ name }}: {{ count }} post{{ count|pluralize }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-subtle">No categories yet.</p>
+      {% endif %}
+    {% endcomponent %}
+
+    <div class="dashboard-sidebar">
+      {% component "unfold/components/card.html" with title="Publishing status" description="Share of all posts" %}
+        {% for status in status_progress %}
+          <div class="dashboard-status">
+            <div class="dashboard-status-label">
+              <span class="text-important">
+                {{ status.title }}
+                <span class="text-subtle">({{ status.count }})</span>
+              </span>
+              <strong class="text-important">{{ status.value }}%</strong>
+            </div>
+            <div aria-hidden="true">
+              {% component "unfold/components/progress.html" with items=status.bars %}
+              {% endcomponent %}
+            </div>
+          </div>
+        {% endfor %}
+        {% if not total_posts %}
+          <p class="text-subtle" style="margin-top: 1rem">No posts yet.</p>
+        {% endif %}
+      {% endcomponent %}
+
+      {% component "unfold/components/card.html" with title="Top authors" description="Ranked by number of posts" %}
+        {% if top_authors.rows %}
+          {% component "unfold/components/table.html" with table=top_authors %}
+          {% endcomponent %}
+        {% else %}
+          <p class="text-subtle">Author rankings will appear once there are posts.</p>
+        {% endif %}
+      {% endcomponent %}
+    </div>
+  </div>
+</main>
+{% endblock %}

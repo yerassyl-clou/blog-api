@@ -28,6 +28,8 @@ BATCH_SIZE = 200
 
 PUBLISHED_SHARE = 0.7
 POST_TITLE_WORDS = 5
+POST_SLUG_MAX_LENGTH = Post._meta.get_field("slug").max_length
+MAX_TAGS_PER_POST = 5
 UNCATEGORIZED_SHARE = 0.1
 POST_PARAGRAPHS = 3
 
@@ -72,31 +74,42 @@ MIN_COMMENT_SENTENCES = 1
 MAX_COMMENT_SENTENCES = 3
 
 
-def unique_value(base: str, used_slugs: set[str]) -> str:
-    candidate = base
+def unique_value(
+    base: str, used_values: set[str], max_length: int | None = None
+) -> str:
+    candidate = base[:max_length]
     suffix_number = FIRST_SUFFIX
 
-    while candidate in used_slugs:
-        candidate = f"{base}-{suffix_number}"
+    while candidate in used_values:
+        suffix = f"-{suffix_number}"
+        prefix = base[: max_length - len(suffix)] if max_length is not None else base
+        candidate = f"{prefix}{suffix}"
         suffix_number += 1
 
-    used_slugs.add(candidate)
+    used_values.add(candidate)
 
     return candidate
 
 
 class Command(BaseCommand):
-
     help = "Fill the database with fake data."
 
     def add_arguments(self, parser: CommandParser) -> None:
-        parser.add_argument("--users", type=int, default=DEFAULT_USERS, help="Number of users to create")
-        parser.add_argument("--posts", type=int, default=DEFAULT_POSTS, help="Number of posts to create")
-        parser.add_argument("--comments", type=int, default=DEFAULT_COMMENTS, help="Number of comments to create")
-        parser.add_argument("--clear", action="store_true", help="Delete existing data before seeding")
-        
-
-
+        parser.add_argument(
+            "--users", type=int, default=DEFAULT_USERS, help="Number of users to create"
+        )
+        parser.add_argument(
+            "--posts", type=int, default=DEFAULT_POSTS, help="Number of posts to create"
+        )
+        parser.add_argument(
+            "--comments",
+            type=int,
+            default=DEFAULT_COMMENTS,
+            help="Number of comments to create",
+        )
+        parser.add_argument(
+            "--clear", action="store_true", help="Delete existing data before seeding"
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         """Command entry point."""
@@ -110,12 +123,10 @@ class Command(BaseCommand):
         for name, count in (
             ("users", users_count),
             ("posts", posts_count),
-            ("comments", comments_count)
+            ("comments", comments_count),
         ):
             if count < 0:
-                raise CommandError(
-                    f"--{name} must be zero or greater"
-                )
+                raise CommandError(f"--{name} must be zero or greater")
 
         fake = Faker()
         rnd = Random()
@@ -126,95 +137,59 @@ class Command(BaseCommand):
 
             self.__create_users(fake, rnd, users_count)
 
-            users = User.objects.all()
+            users = list(User.objects.all())
 
             if (posts_count or comments_count) and not users:
                 raise CommandError(
                     "Posts or comments require users (use 1 or more user in --users)"
                 )
 
-            categories_created = self.__create_named(
-                Category,
-                CATEGORY_NAMES
-            )
-            tags_created = self.__create_named(
-                Tag,
-                TAG_NAMES
-            )
+            categories_created = self.__create_named(Category, CATEGORY_NAMES)
+            tags_created = self.__create_named(Tag, TAG_NAMES)
 
-            self.__create_posts(
-                fake, 
-                rnd,
-                users,
-                posts_count
-            )
+            self.__create_posts(fake, rnd, users, posts_count)
 
-            published_posts = list (
+            published_posts = list(
                 Post.objects.filter(status=Post.StatusType.PUBLISHED)
             )
 
             if comments_count and not published_posts:
-                raise CommandError(
-                    "Comments require posts (use 1 or more posts in --posts)"
-                ) 
+                raise CommandError("Comments require at least one published post")
 
-            self.__create_comments(
-                fake,
-                rnd,
-                users,
-                published_posts,
-                comments_count
-            )
+            self.__create_comments(fake, rnd, users, published_posts, comments_count)
 
-                   
-
-        self.stdout.write(f"Users: {users_count}")
-        self.stdout.write(f"Categories: {categories_created}")
-        self.stdout.write(f"Tags: {tags_created}")
-        self.stdout.write(f"Posts: {posts_count}")
-        self.stdout.write(f"Comments: {comments_count}")
+        self.stdout.write(f"{'Users:':<12}{users_count:>5} created")
+        self.stdout.write(f"{'Categories:':<12}{categories_created:>5} created")
+        self.stdout.write(f"{'Tags:':<12}{tags_created:>5} created")
+        self.stdout.write(f"{'Posts:':<12}{posts_count:>5} created")
+        self.stdout.write(f"{'Comments:':<12}{comments_count:>5} created")
 
         execution_time = time.perf_counter() - start_time
 
         self.stdout.write(self.style.SUCCESS(f"Done in {execution_time:.2f} seconds"))
 
-        
-
-
-    def __create_users(
-        self, 
-        fake: Faker, 
-        rnd: Random,
-        count: int
-    ) -> None:
+    def __create_users(self, fake: Faker, rnd: Random, count: int) -> None:
         """Function for users creation."""
         if count == 0:
             return
 
-        used_emails = set(
-            User.objects.values_list("email", flat=True)
-        )
+        used_emails = set(User.objects.values_list("email", flat=True))
 
         used_local_parts = set()
 
         for email in used_emails:
-                if email.endswith(EMAIL_DOMAIN):
-                    local_part = email.split("@")[0]
-                    used_local_parts.add(local_part)
-        
+            if email.endswith(EMAIL_DOMAIN):
+                local_part = email.split("@")[0]
+                used_local_parts.add(local_part)
 
         hashed_password = make_password(SEED_PASSWORD)
 
         inactive_count = round(count * INACTIVE_SHARE)
         staff_count = max(1, round(count * STAFF_SHARE))
 
-        active_flags = (
-            [False] * inactive_count + [True] * (count - inactive_count)
-        )
+        active_flags = [False] * inactive_count + [True] * (count - inactive_count)
 
-        staff_flags = (
-            [False] * (count - staff_count) + [True] * staff_count  
-        )
+        staff_flags = [False] * (count - staff_count) + [True] * staff_count
 
         rnd.shuffle(active_flags)
         rnd.shuffle(staff_flags)
@@ -225,12 +200,11 @@ class Command(BaseCommand):
             first_name = fake.first_name()
             last_name = fake.last_name()
 
-            base = slugify(
-                f"{first_name}.{last_name}"
-            ).replace("-", ".")
+            base = slugify(f"{first_name}.{last_name}").replace("-", ".")
 
             local_part = unique_value(
-                base, used_local_parts,
+                base,
+                used_local_parts,
             )
 
             users_to_create.append(
@@ -244,12 +218,10 @@ class Command(BaseCommand):
                 )
             )
 
-        User.objects.bulk_create(users_to_create, ignore_conflicts=True, batch_size=BATCH_SIZE)
+        User.objects.bulk_create(users_to_create, batch_size=BATCH_SIZE)
 
     def __create_named(
-        self, 
-        model: type[Category] | type[Tag], 
-        names: tuple[str]
+        self, model: type[Category] | type[Tag], names: tuple[str, ...]
     ) -> int:
         """Function for posts and categories creation."""
         used_names = set(model.objects.values_list("name", flat=True))
@@ -265,19 +237,15 @@ class Command(BaseCommand):
 
             objects_to_create.append(model(name=name, slug=slug))
 
-            used_names.add(name),
+            used_names.add(name)
             used_slugs.add(slug)
 
-        model.objects.bulk_create(objects_to_create, ignore_conflicts=True, batch_size=BATCH_SIZE)
+        model.objects.bulk_create(objects_to_create, batch_size=BATCH_SIZE)
 
         return len(objects_to_create)
 
     def __create_posts(
-        self, 
-        fake: Faker,
-        rnd: Random, 
-        users: list[User],
-        count:int    
+        self, fake: Faker, rnd: Random, users: list[User], count: int
     ) -> None:
         """Function for posts creation."""
         categories = list(Category.objects.all())
@@ -287,17 +255,19 @@ class Command(BaseCommand):
 
         published_count = round(count * PUBLISHED_SHARE)
 
-        statuses = (
-            [Post.StatusType.PUBLISHED] * published_count + [Post.StatusType.DRAFT] * (count - published_count)  
-        )   
+        statuses = [Post.StatusType.PUBLISHED] * published_count + [
+            Post.StatusType.DRAFT
+        ] * (count - published_count)
 
         rnd.shuffle(statuses)
 
         posts_to_create: list[Post] = []
 
         for status in statuses:
-            title = fake.sentence(nb_words=POST_TITLE_WORDS)
-            
+            title = fake.sentence(nb_words=POST_TITLE_WORDS)[
+                : Post.TITLE_MAX_LENGTH
+            ].rstrip()
+
             if rnd.random() > UNCATEGORIZED_SHARE:
                 category = rnd.choice(categories)
             else:
@@ -309,35 +279,30 @@ class Command(BaseCommand):
                     title=title,
                     slug=unique_value(
                         slugify(title),
-                        used_slugs, 
+                        used_slugs,
+                        max_length=POST_SLUG_MAX_LENGTH,
                     ),
-                    body="\n\n".join(
-                        fake.paragraphs(nb=POST_PARAGRAPHS)
-                    ),
+                    body="\n\n".join(fake.paragraphs(nb=POST_PARAGRAPHS)),
                     category=category,
                     status=status,
                 )
             )
 
-        Post.objects.bulk_create(posts_to_create, batch_size=BATCH_SIZE)
-
-        created_posts = Post.objects.filter(
-            slug__in=[post.slug for post in posts_to_create]
-        )
+        created_posts = Post.objects.bulk_create(posts_to_create, batch_size=BATCH_SIZE)
 
         for post in created_posts:
-            tag_count = rnd.randint(0, min(5, len(tags)))
+            tag_count = rnd.randint(0, min(MAX_TAGS_PER_POST, len(tags)))
             selected_tags = rnd.sample(tags, tag_count)
 
             post.tags.set(selected_tags)
 
     def __create_comments(
-        self, 
+        self,
         fake: Faker,
-        rnd: Random, 
+        rnd: Random,
         users: list[User],
         published_posts: list[Post],
-        count: int
+        count: int,
     ) -> None:
         """Function for comments creation."""
         comments_to_create: list[Comment] = []
@@ -355,7 +320,7 @@ class Command(BaseCommand):
                 )
             )
 
-        Comment.objects.bulk_create(comments_to_create, ignore_conflicts=True, batch_size=BATCH_SIZE)
+        Comment.objects.bulk_create(comments_to_create, batch_size=BATCH_SIZE)
 
     def __clear_data(self) -> None:
         """Function for data cleaning before adding new."""
@@ -367,4 +332,4 @@ class Command(BaseCommand):
         Category.objects.all().delete()
         User.objects.filter(is_superuser=False).delete()
 
-        self.stdout.write(self.style.SUCCESS("data cleaned succesfully"))
+        self.stdout.write(self.style.SUCCESS("Existing data cleared"))
