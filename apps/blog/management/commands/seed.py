@@ -1,11 +1,13 @@
 import time
 from random import Random
 from typing import Any
+from datetime import datetime, timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 from django.utils.text import slugify
+from django.utils import timezone
 from faker import Faker
 
 from apps.auths.models import User
@@ -72,6 +74,11 @@ TAG_NAMES = (
 MIN_COMMENT_SENTENCES = 1
 
 MAX_COMMENT_SENTENCES = 3
+
+POST_HISTORY_DAYS = 365
+POST_EDIT_SHARE = 0.3
+MIN_EDIT_DELAY = 1
+MAX_EDIT_DELAY = 30
 
 
 def unique_value(
@@ -147,11 +154,19 @@ class Command(BaseCommand):
             categories_created = self.__create_named(Category, CATEGORY_NAMES)
             tags_created = self.__create_named(Tag, TAG_NAMES)
 
-            self.__create_posts(fake, rnd, users, posts_count)
-
-            published_posts = list(
+            existing_published_posts = list(
                 Post.objects.filter(status=Post.StatusType.PUBLISHED)
             )
+
+            created_posts = self.__create_posts(fake, rnd, users, posts_count)
+
+            new_published_posts = list(
+                post
+                for post in created_posts
+                if post.status == Post.StatusType.PUBLISHED
+            )
+
+            published_posts = list(existing_published_posts + new_published_posts)
 
             if comments_count and not published_posts:
                 raise CommandError("Comments require at least one published post")
@@ -246,7 +261,7 @@ class Command(BaseCommand):
 
     def __create_posts(
         self, fake: Faker, rnd: Random, users: list[User], count: int
-    ) -> None:
+    ) -> list[Post]:
         """Function for posts creation."""
         categories = list(Category.objects.all())
         tags = list(Tag.objects.all())
@@ -290,11 +305,27 @@ class Command(BaseCommand):
 
         created_posts = Post.objects.bulk_create(posts_to_create, batch_size=BATCH_SIZE)
 
+
+        now = timezone.now()
+
+        for post in created_posts:
+            post.created_at = now - timedelta(days=(rnd.randint(0, POST_HISTORY_DAYS)))
+            post.updated_at = post.created_at
+
+            available_days = min((now - post.created_at).days, MAX_EDIT_DELAY)
+
+            if (POST_EDIT_SHARE > rnd.random() and available_days >= MIN_EDIT_DELAY):
+                post.updated_at = post.created_at + timedelta(days=(rnd.randint(MIN_EDIT_DELAY, available_days)))
+
+        Post.objects.bulk_update(created_posts, ["created_at", "updated_at"], batch_size=BATCH_SIZE)
+
         for post in created_posts:
             tag_count = rnd.randint(0, min(MAX_TAGS_PER_POST, len(tags)))
             selected_tags = rnd.sample(tags, tag_count)
 
             post.tags.set(selected_tags)
+
+        return created_posts
 
     def __create_comments(
         self,
@@ -308,9 +339,10 @@ class Command(BaseCommand):
         comments_to_create: list[Comment] = []
 
         for _ in range(count):
+            post=rnd.choice(published_posts)
             comments_to_create.append(
                 Comment(
-                    post=rnd.choice(published_posts),
+                    post=post,
                     author=rnd.choice(users),
                     body=" ".join(
                         fake.sentences(
@@ -320,7 +352,17 @@ class Command(BaseCommand):
                 )
             )
 
-        Comment.objects.bulk_create(comments_to_create, batch_size=BATCH_SIZE)
+        created_comments = Comment.objects.bulk_create(comments_to_create, batch_size=BATCH_SIZE)
+
+        now = timezone.now()
+        for comment in created_comments:
+            post_date = comment.post.created_at
+            comment.created_at = post_date + rnd.random() * (now - post_date)
+
+        Comment.objects.bulk_update(created_comments, ["created_at"], batch_size=BATCH_SIZE)
+
+
+
 
     def __clear_data(self) -> None:
         """Function for data cleaning before adding new."""
