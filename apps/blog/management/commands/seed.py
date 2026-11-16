@@ -1,13 +1,13 @@
 import time
+from datetime import timedelta
 from random import Random
 from typing import Any
-from datetime import datetime, timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
-from django.utils.text import slugify
 from django.utils import timezone
+from django.utils.text import slugify
 from faker import Faker
 
 from apps.auths.models import User
@@ -160,11 +160,10 @@ class Command(BaseCommand):
 
             created_posts = self.__create_posts(fake, rnd, users, posts_count)
 
-            new_published_posts = list(
-                post
-                for post in created_posts
-                if post.status == Post.StatusType.PUBLISHED
-            )
+            new_published_posts = [
+                post for post in created_posts if post.status == Post.StatusType.PUBLISHED
+            ]
+
 
             published_posts = list(existing_published_posts + new_published_posts)
 

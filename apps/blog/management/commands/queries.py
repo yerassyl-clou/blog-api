@@ -1,16 +1,31 @@
+from datetime import timedelta
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.db import connection
 from django.db.models import Model, QuerySet
 from django.test.utils import CaptureQueriesContext
-from django.db import connection
+from django.utils import timezone
 
+from apps.auths.models import User
+from apps.blog.models import Comment, Post
 from apps.blog.queries import QUERIES
-
 
 PREVIEW_ROWS = 5
 MUTATING_QUERIES = {40, 41, 42, 43, 44}
-SAMPLE_ARGS: dict[int, dict[str, Any]] = {}
+SAMPLE_ARGS: dict[int, dict[str, Any]] = {
+    7: {"page": 1},
+    9: {"domain": "example.com"},
+    11: {"slugs": ["python", "django"]},
+    13: {"days": 30},
+    14: {
+        "start": timezone.localdate() - timedelta(days=365),
+        "end": timezone.localdate(),
+    },
+    21: {"first_slug": "backend", "second_slug": "docker"},
+    34: {"min_posts": 2},
+
+}
 
 
 class Command(BaseCommand):
@@ -48,6 +63,57 @@ class Command(BaseCommand):
             function = QUERIES[number]
             arguments = SAMPLE_ARGS.get(number, {})
 
+            if number == 4:
+                slug = Post.objects.order_by("pk").values_list(
+                    "slug", flat = True
+                ).first()
+                arguments = {"slug": slug or ""}
+
+            if number == 8:
+                title = Post.objects.order_by("pk").values_list(
+                    "title", flat=True
+                ).first()
+                arguments = {"word": title.split()[0] if title else ""}
+
+            if number == 12:
+                created_at = Post.objects.order_by("pk").values_list(
+                    "created_at", flat=True
+                ).first()
+                example_day = created_at.date() if created_at else timezone.now()
+                arguments = {"year": example_day.year, "month": example_day.month}
+
+            if number == 15:
+                email = Post.objects.filter(
+                    status=Post.StatusType.PUBLISHED
+                ).values_list("author__email", flat=True).first()
+                arguments = {"email": email or ""}
+
+            if number == 16:
+                tag_slug = Post.objects.filter(
+                    tags__isnull=False
+                ).values_list("tags__slug", flat=True).first()
+                arguments = {"tag_slug": tag_slug or ""}
+
+            if number == 17:
+                category_slug = Comment.objects.filter(
+                    post__category__isnull=False
+                ).values_list("post__category__slug", flat=True).first()
+                arguments = {"category_slug": category_slug or ""}
+
+            if number == 22:
+                title = Post.objects.order_by("pk").values_list(
+                    "title", flat=True
+                ).first()
+                arguments = {"text": title.split()[0] if title else ""}
+
+            if number == 37:
+                first_name, last_name = (
+                    User.objects.order_by("pk").values_list(
+                    "first_name", "last_name"
+                ).first() or ("", "")
+                )
+                arguments = {"text": f"{first_name} {last_name}"}
+
             with CaptureQueriesContext(connection) as context:
                 result = function(**arguments)
                 anotation_names = (
@@ -78,7 +144,7 @@ class Command(BaseCommand):
                             self.stdout.write(f" {item}")
                     self.stdout.write(f"({len(result)} rows)")
                 else:
-                    self.stdout.write(f" {item}")
+                    self.stdout.write(f" {result}")
             
             
         
