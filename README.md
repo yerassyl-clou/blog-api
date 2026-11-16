@@ -4,21 +4,18 @@ Django course project for a blog.
 
 ![Database diagram](docs/erd.png)
 
-## Seed data
+## Seed Data
 
-´python3 manage.py seed´ creates demo data for users, posts, comments, tags and categories
+`python3 manage.py seed` creates demo data for users, posts, comments, tags, and categories.
 
-´´´
---users
---posts
---comments
---clear
-´´´
+### Available options
 
-Example of usage
-´´´python
-python3 manage.py seed --users 30 --posts 100 --comments 500 --clear
-´´´
+```bash
+--users       Number of users to create.
+--posts       Number of posts to create.
+--comments    Number of comments to create.
+--clear       Clear existing demo data before generating new data.
+```
 
 ## Admin screenshots
 
@@ -37,3 +34,12 @@ python3 manage.py seed --users 30 --posts 100 --comments 500 --clear
 #### Users list
 
 ![Users list](docs/screenshots/user_list.png)
+
+## Querries
+
+`python3 manage.py querries` runs SQL queries on the Blog API's data.
+
+```bash
+--number    Specify the query number to execute.
+--sql       Display the actual SQL query.
+```
